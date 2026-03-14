@@ -29,6 +29,14 @@ jobs:
       - name: Create dist directory
         run: mkdir -p dist
 
+      - name: Set release filename
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "RELEASE_FILENAME=archlinux-${GITHUB_REF_NAME}.wsl" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_FILENAME=archlinux.wsl" >> "$GITHUB_ENV"
+          fi
+
       - name: Build Docker image
         run: docker build -t "${IMAGE_NAME}" .
 
@@ -42,7 +50,7 @@ jobs:
         run: docker create --name "${CONTAINER_NAME}" "${IMAGE_NAME}"
 
       - name: Export rootfs as .wsl
-        run: docker export "${CONTAINER_NAME}" -o "dist/${OUTPUT_NAME}"
+        run: docker export "${CONTAINER_NAME}" -o "dist/${RELEASE_FILENAME}"
 
       - name: Clean up container
         if: always()
@@ -52,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: archlinux-wsl
-          path: dist/${{ env.OUTPUT_NAME }}
+          path: dist/${{ env.RELEASE_FILENAME }}
           if-no-files-found: error
           retention-days: 30
 
@@ -62,6 +70,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "${GITHUB_REF_NAME}" \
-            "dist/${OUTPUT_NAME}" \
+            "dist/${RELEASE_FILENAME}" \
             --title "${GITHUB_REF_NAME}" \
             --generate-notes
