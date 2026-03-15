@@ -6,22 +6,6 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-while true; do
-    read -rp "Enter your username: " username
-
-    if [[ -z "$username" ]]; then
-        echo "Username must not be empty."
-        continue
-    fi
-
-    if id "$username" >/dev/null 2>&1; then
-        echo "User '$username' already exists."
-        continue
-    fi
-
-    break
-done
-
 prompt_locale() {
     local prompt="$1"
     local default_locale="$2"
@@ -79,6 +63,22 @@ locale-gen
 if ! getent group wheel >/dev/null; then
   groupadd wheel
 fi
+
+while true; do
+    read -rp "Enter your username: " username
+
+    if [[ -z "$username" ]]; then
+        echo "Username must not be empty."
+        continue
+    fi
+
+    if id "$username" >/dev/null 2>&1; then
+        echo "User '$username' already exists."
+        continue
+    fi
+
+    break
+done
 
 useradd -m -s /bin/bash -G wheel "$username"
 passwd "$username"
