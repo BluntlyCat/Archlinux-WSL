@@ -6,25 +6,84 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-read -rp "Enter your username: " username
+while true; do
+    read -rp "Enter your username: " username
 
-if [[ -z "$username" ]]; then
-  echo "Username must not be empty."
-  exit 1
+    if [[ -z "$username" ]]; then
+        echo "Username must not be empty."
+        continue
+    fi
+
+    if id "$username" >/dev/null 2>&1; then
+        echo "User '$username' already exists."
+        continue
+    fi
+
+    break
+done
+
+prompt_locale() {
+    local prompt="$1"
+    local default_locale="$2"
+    local user_locale
+
+    while true; do
+        read -rp "$prompt [default: $default_locale]: " user_locale
+        user_locale="${user_locale:-$default_locale}"
+
+        if [[ ! "$user_locale" =~ ^[a-z]{2}_[A-Z]{2}$ ]]; then
+            echo "Invalid locale format. Expected format like de_DE or fr_FR."
+            continue
+        fi
+
+        if ! grep -Eq "^[#[:space:]]*${user_locale}\.UTF-8 UTF-8$" /etc/locale.gen; then
+            echo "Locale ${user_locale}.UTF-8 is not available in /etc/locale.gen."
+            continue
+        fi
+
+        printf '%s\n' "$user_locale"
+        return 0
+    done
+}
+
+enable_locale() {
+    local locale_name="$1"
+    sed -i -E "s|^#?(${locale_name}\.UTF-8 UTF-8)|\1|" /etc/locale.gen
+}
+
+language_locale="$(prompt_locale 'Enter UI language locale (e.g. en_US, de_DE)' 'en_US')"
+
+read -rp "Use a separate locale for date, numbers and currency? [y/N]: " use_regional_locale
+
+regional_locale=""
+if [[ "$use_regional_locale" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    regional_locale="$(prompt_locale 'Enter regional locale (e.g. de_DE, fr_FR)' "$language_locale")"
 fi
 
-if id "$username" >/dev/null 2>&1; then
-  echo "User '$username' already exists."
-  exit 1
+enable_locale "$language_locale"
+if [[ -n "$regional_locale" && "$regional_locale" != "$language_locale" ]]; then
+    enable_locale "$regional_locale"
 fi
 
-useradd -m -s /bin/bash "$username"
-passwd "$username"
+locale-gen
+
+{
+    echo "LANG=${language_locale}.UTF-8"
+    if [[ -n "$regional_locale" ]]; then
+        echo "LC_TIME=${regional_locale}.UTF-8"
+        echo "LC_NUMERIC=${regional_locale}.UTF-8"
+        echo "LC_MONETARY=${regional_locale}.UTF-8"
+    fi
+} > /etc/locale.conf
 
 if ! getent group wheel >/dev/null; then
   groupadd wheel
 fi
-usermod -aG wheel "$username"
+
+useradd -m -s /bin/bash -G wheel "$username"
+passwd "$username"
+
+printf '\n[user]\ndefault=%s\n' "$username" >> /etc/wsl.conf
 
 cat > /etc/sudoers.d/wheel <<'EOF'
 %wheel ALL=(ALL:ALL) ALL
@@ -38,127 +97,73 @@ sudo -u "$username" ssh-keygen \
   -C "$username@$(hostname)" \
   -f "/home/$username/.ssh/id_ed25519"
 
-sed -i "s/default=root/default=$username/" /etc/wsl.conf
-
-cat > /home/$username/.bash_colors <<'EOF'
-export BLACK='\033[1;30m'
-export RED='\033[1;31m'
-export GREEN='\033[1;32m'
-export YELLOW='\033[1;33m'
-export BLUE='\033[1;34m'
-export MAGENTA='\033[1;35m'
-export CYAN='\033[1;36m'
-export GRAY='\033[1;37m'
-export DEFAULT='\033[0;39m'
-export WHITE='\033[01;00m'
-EOF
-
-cat > /home/$username/.bashrc <<'EOF'
+cat > "/home/$username/.bashrc" <<'EOF'
 # ~/.bashrc: executed by bash(1) for non-login shells.
-# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
-# for examples
 
 # If not running interactively, don't do anything
-[ -z "$PS1" ] && return
+[[ $- != *i* ]] && return
 
-# don't put duplicate lines in the history. See bash(1) for more options
-# ... or force ignoredups and ignorespace
+# History
 HISTCONTROL=ignoredups:ignorespace
-
-# append to the history file, don't overwrite it
-shopt -s histappend
-
-# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
 HISTSIZE=1000
 HISTFILESIZE=2000
-
-# check the window size after each command and, if necessary,
-# update the values of LINES and COLUMNS.
+shopt -s histappend
 shopt -s checkwinsize
 
-# make less more friendly for non-text input files, see lesspipe(1)
+# lesspipe
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
 
-# enable bash colors
-if [ -f $HOME/.bash_colors ]; then
-    . $HOME/.bash_colors
-fi
+# Editor
+export EDITOR='vim'
+export SVN_EDITOR='vim'
 
-# set promt and colors
-if [ "$USER" == "root" ]; then
-    ucolor="\[$RED\]"
-else
-    ucolor="\[$GREEN\]"
-fi
+# WSL graphics
+export GALLIUM_DRIVER=d3d12
+export LIBVA_DRIVER_NAME=d3d12
 
-checked=$(echo "\342\234\223")
-ballot=$(echo "\342\234\227")
-
-function __parse_git_branch() {
-    git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/'
-}
-
-function __prompt_command() {
-    local EXIT="$?"
-
-    if test $EXIT -eq 0; then
-        error="\[$WHITE\]$EXIT \[$GREEN\]$checked\[$WHITE\]] "
-    else
-        error="\[$WHITE\]$EXIT \[$RED\]$ballot\[$WHITE\]] "
-    fi
-
-    gitInfo=""
-    branch=$(__parse_git_branch)
-    if ! test -z "$branch"; then
-        gitInfo="\[$MAGENTA\][$branch]"
-    fi
-
-    PS1="$error$ucolor\u@$ucolor\h\[$WHITE\]:\[$BLUE\]\w$gitInfo\[$BLUE\]\$ \[$WHITE\]"
-    PS2="$error$ucolor# \[$WHITE\]:\[$WHITE\]\W\[$WHITE\]\$ "
-}
-
-export PROMPT_COMMAND=__prompt_command
-
-# enable color support of ls and also add handy aliases
-if [ -x /usr/bin/dircolors ]; then
-    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
-    #alias dir='dir --color=auto'
-    #alias vdir='vdir --color=auto'
-
-    alias grep='grep --color=always'
-    alias fgrep='fgrep --color=always'
-    alias egrep='egrep --color=always'
-fi
-
-# enable programmable completion features (you don't need to enable
-# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
-# sources /etc/bash.bashrc).
+# Bash completion
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
 
-# Alias definitions.
-# You may want to put all your additions into a separate file like
-# ~/.bash_aliases, instead of adding them here directly.
-# See /usr/share/doc/bash-doc/examples in the bash-doc package.
-
-if [ -f ~/.bash_aliases ]; then
-    . ~/.bash_aliases
+# User aliases
+if [ -f "$HOME/.bash_aliases" ]; then
+    . "$HOME/.bash_aliases"
 fi
 
-export EDITOR='vim'
-export SVN_EDITOR='vim'
-
-export SUDO_ASKPASS=/usr/bin/ssh-askpass
-
-export GALLIUM_DRIVER=d3d12
-export LIBVA_DRIVER_NAME=d3d12
-
-eval "$(/usr/bin/wsl2-ssh-agent)"
-
-source /usr/share/fzf/key-bindings.bash
-source /usr/share/fzf/completion.bash
+# Custom Bash Config
+if [ -f "$HOME/.local.bashrc" ]; then
+    . "$HOME/.local.bashrc"
+fi
 EOF
+
+chown "$username:$username" "/home/$username/.bashrc"
+
+read -rp "Download extended bash configs from https://github.com/BluntlyCat/dotfiles? [y/N]: " enable_custom
+
+download_dotfile() {
+    local base_url="$1"
+    local file="$2"
+    local target="/home/$username/.${file}"
+
+    local url="${base_url}/${file}"
+
+    if curl -fsSL "$url" -o "$target"; then
+        chown "$username:$username" "$target"
+        chmod 644 "$target"
+        echo "Installed .$file"
+    else
+        echo "Warning: Failed to download $file from GitHub."
+    fi
+}
+
+if [[ "$enable_custom" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    dotfile_url="https://raw.githubusercontent.com/BluntlyCat/dotfiles/main"
+
+    download_dotfile "$dotfile_url" "bash_aliases"
+    download_dotfile "$dotfile_url" "local.bashrc"
+    download_dotfile "$dotfile_url" "vimrc"
+fi
 
 echo "Setup complete. Please restart your WSL distribution to apply the changes."
 echo

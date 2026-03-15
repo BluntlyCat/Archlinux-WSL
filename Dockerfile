@@ -47,20 +47,17 @@ RUN pacman -Syu --noconfirm && \
   userdel -r builduser && \
   rm -f /etc/sudoers.d/builduser && \
   rm -rf /var/cache/pacman/pkg/* && \
-  sed -i -E 's/^#(de_DE\.UTF-8 UTF-8)/\1/; s/^#(en_US\.UTF-8 UTF-8)/\1/' /etc/locale.gen && \
+  sed -i -E 's/^#(en_US\.UTF-8 UTF-8)/\1/' /etc/locale.gen && \
   locale-gen && \
   printf '%s\n' \
     'LANG=en_US.UTF-8' \
-    'LC_TIME=de_DE.UTF-8' \
-    'LC_NUMERIC=de_DE.UTF-8' \
-    'LC_MONETARY=de_DE.UTF-8' \
+    'LC_TIME=en_US.UTF-8' \
+    'LC_NUMERIC=en_US.UTF-8' \
+    'LC_MONETARY=en_US.UTF-8' \
     > /etc/locale.conf && \
   printf '%s\n' \
     '[boot]' \
     'systemd=true' \
-    '' \
-    '[user]' \
-    'default=root' \
     > /etc/wsl.conf && \
   systemctl mask systemd-firstboot.service && \
   systemctl mask systemd-resolved.service && \
