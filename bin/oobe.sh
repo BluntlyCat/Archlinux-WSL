@@ -32,12 +32,12 @@ prompt_locale() {
         user_locale="${user_locale:-$default_locale}"
 
         if [[ ! "$user_locale" =~ ^[a-z]{2}_[A-Z]{2}$ ]]; then
-            echo "Invalid locale format. Expected format like de_DE or fr_FR."
+            echo "Invalid locale format. Expected format like de_DE or fr_FR." >&2
             continue
         fi
 
-        if ! grep -Eq "^[#[:space:]]*${user_locale}\.UTF-8 UTF-8$" /etc/locale.gen; then
-            echo "Locale ${user_locale}.UTF-8 is not available in /etc/locale.gen."
+        if ! command grep -Eq "^[[:space:]]*#?[[:space:]]*${user_locale}\.UTF-8[[:space:]]+UTF-8[[:space:]]*$" /etc/locale.gen; then
+            echo "Locale ${user_locale}.UTF-8 is not available in /etc/locale.gen." >&2
             continue
         fi
 
@@ -48,7 +48,7 @@ prompt_locale() {
 
 enable_locale() {
     local locale_name="$1"
-    sed -i -E "s|^#?(${locale_name}\.UTF-8 UTF-8)|\1|" /etc/locale.gen
+    sed -i -E "s|^[[:space:]]*#?[[:space:]]*(${user_locale}\.UTF-8[[:space:]]+UTF-8)[[:space:]]*$|\1|" /etc/locale.gen
 }
 
 language_locale="$(prompt_locale 'Enter UI language locale (e.g. en_US, de_DE)' 'en_US')"
