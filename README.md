@@ -47,6 +47,73 @@ WSL does **not** need to be fully configured beforehand, since the build process
 
 ---
 
+# Quick install
+
+If you only want to install the prepared distribution without building it yourself, download the archlinux.wsl file from the latest release and execute it
+
+After installation, WSL automatically launches the distribution and starts the OOBE setup.
+
+---
+
+# Using the Windows SSH Agent with `wsl2-ssh-agent`
+
+The distribution includes **`wsl2-ssh-agent`**, which allows WSL to use the **Windows OpenSSH agent**.
+
+This enables sharing SSH keys between Windows and WSL. The keys remain stored on the Windows side and are made available to WSL through the agent.
+
+The feature is optional. If you want to use it, you need to configure the Windows OpenSSH components.
+
+## 1. Install OpenSSH components
+
+Install the OpenSSH components on Windows if they are not already present.
+
+You can install them via **Windows Settings → Optional Features** or with PowerShell:
+
+    Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+
+This installs the Windows OpenSSH tools including `ssh-agent` and `ssh-add`.
+
+## 2. Generate an SSH key
+
+Create an SSH key on Windows:
+
+    ssh-keygen -t ed25519
+
+The key will be stored in:
+
+    %USERPROFILE%\.ssh\
+
+## 3. Enable the Windows SSH Agent service
+
+Open **Services** and set the **OpenSSH Authentication Agent** to start automatically.
+
+Alternatively configure it via PowerShell:
+
+    Set-Service ssh-agent -StartupType Automatic
+    Start-Service ssh-agent
+
+## 4. Add your key to the agent
+
+Add the key to the Windows SSH agent:
+
+    ssh-add $env:USERPROFILE\.ssh\id_ed25519
+
+Once the key is loaded, it will be available inside WSL through `wsl2-ssh-agent`.
+
+You can verify this from WSL:
+
+    ssh-add -l
+
+If the agent is configured correctly, the loaded keys from Windows will appear in the list.
+
+## Additional reference
+
+For more details about managing SSH keys on Windows, see the Microsoft documentation:
+
+https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement
+
+---
+
 # Build the distribution
 
 Run the PowerShell build script:
