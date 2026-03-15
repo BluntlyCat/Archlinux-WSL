@@ -14,27 +14,6 @@ The distribution is built reproducibly using Docker.
 
 ---
 
-# How it works
-
-The build pipeline looks like this:
-
-Dockerfile
-->
-Docker image
-->
-docker export
-->
-rootfs.tar
-->
-archlinux.wsl
-->
-wsl --install --from-file
-
-The `.wsl` file is simply a **tar archive containing the Linux root filesystem**.  
-WSL can install such archives directly.
-
----
-
 # Runtime Requirements
 
 You need the following tools installed on Windows:
@@ -120,6 +99,27 @@ You need the following tools installed on Windows:
 - **PowerShell**
 
 WSL does **not** need to be fully configured beforehand, since the build process runs entirely through Docker.
+
+---
+
+# How it works
+
+The build pipeline looks like this:
+
+Dockerfile
+->
+Docker image
+->
+docker export
+->
+rootfs.tar
+->
+archlinux.wsl
+->
+wsl --install --from-file
+
+The `.wsl` file is simply a **tar archive containing the Linux root filesystem**.  
+WSL can install such archives directly.
 
 ---
 
