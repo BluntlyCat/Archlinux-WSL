@@ -5,6 +5,7 @@ COPY --chmod=555 etc/wsl-distribution.conf /etc/wsl-distribution.conf
 COPY --chmod=555 icon/archlinux.png /usr/share/icons/default/archlinux.png
 
 RUN pacman -Syu --noconfirm && \
+  sed -i '/^[[:space:]]*NoExtract[[:space:]]*=/d' /etc/pacman.conf && \
   pacman -S --noconfirm \
     base \
     base-devel \
@@ -30,6 +31,7 @@ RUN pacman -Syu --noconfirm && \
     python \
     go \
     fzf \
+    glibc \
     x11-ssh-askpass \
     bash \
     bash-completion && \
@@ -60,7 +62,6 @@ RUN pacman -Syu --noconfirm && \
     '[boot]' \
     'systemd=true' \
     > /etc/wsl.conf && \
-  sed -i '/^[[:space:]]*NoExtract[[:space:]]*=/d' /etc/pacman.conf && \
   systemctl mask systemd-firstboot.service && \
   systemctl mask systemd-resolved.service && \
   systemctl mask systemd-networkd.service && \
