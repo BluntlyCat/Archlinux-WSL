@@ -30,6 +30,7 @@ RUN pacman -Syu --noconfirm && \
     python \
     go \
     fzf \
+    x11-ssh-askpass \
     bash \
     bash-completion && \
   pacman -Scc --noconfirm && \

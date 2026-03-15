@@ -113,6 +113,9 @@ shopt -s checkwinsize
 # lesspipe
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
 
+# SSH askpass
+export SUDO_ASKPASS=/usr/lib/ssh/ssh-askpass
+
 # Editor
 export EDITOR='vim'
 export SVN_EDITOR='vim'
@@ -120,6 +123,21 @@ export SVN_EDITOR='vim'
 # WSL graphics
 export GALLIUM_DRIVER=d3d12
 export LIBVA_DRIVER_NAME=d3d12
+
+# FZF configuration
+export FZF_CTRL_R_OPTS="--sort --exact"
+
+if [ -f /usr/share/fzf/key-bindings.bash ]; then
+    . /usr/share/fzf/key-bindings.bash
+fi
+
+if [ -f /usr/share/fzf/completion.bash ]; then
+    . /usr/share/fzf/completion.bash
+fi
+
+if [ -x /usr/bin/wsl2-ssh-agent ]; then
+    eval "$(/usr/bin/wsl2-ssh-agent)"
+fi
 
 # Bash completion
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
