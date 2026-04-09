@@ -36,6 +36,19 @@ After installation, WSL automatically launches the distribution and starts the O
 
 ---
 
+# Enable IPv6
+
+To enable IPv6 connectivity in WSL, you need to change the networking mode to ```Mirrored```.  
+To do so create the file .wslconfig directly within this folder and paste the content below.  
+Your Windows user folder is usually located at C:\Users\<YOUR_USERNAME>  
+
+```.wslconfig
+[wsl2]
+networkingMode=Mirrored
+```
+
+---
+
 # First Boot (OOBE)
 
 The distribution uses the WSL **Out-Of-Box Experience (OOBE)** mechanism.
